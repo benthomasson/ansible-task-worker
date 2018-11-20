@@ -11,7 +11,12 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = [ ]
+requirements = [ 'ansible',
+                 'ansible-runner>=1.1.0',
+                 'PyYAML',
+                 'docopt',
+                 'six',
+]
 
 setup_requirements = ['pytest-runner', ]
 

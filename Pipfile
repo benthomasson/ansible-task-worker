@@ -4,6 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+ansible = "*"
+ansible-runner = "*"
+pyyaml = "*"
+docopt = "*"
 
 [dev-packages]
 bumpversion = "==0.5.3"
