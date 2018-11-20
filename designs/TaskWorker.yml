@@ -1,0 +1,50 @@
+diagram_uuid: b56c4d5b-3cdd-4cd5-b059-2d9198844c93
+finite_state_machine_id: 1
+name: TaskWorker
+states:
+- id: 0
+  label: Initialize
+  x: 634
+  y: 374
+- id: 1
+  label: Ready
+  x: 641
+  y: 630
+- id: 2
+  label: RunTask
+  x: 485
+  y: 892
+- id: 3
+  label: Start
+  x: 628
+  y: -26
+- id: 4
+  label: TaskComplete
+  x: 830
+  y: 873
+- id: 6
+  label: Waiting
+  x: 632
+  y: 163
+transitions:
+- from_state: Initialize
+  label: start
+  to_state: Ready
+- from_state: Ready
+  label: onInventory
+  to_state: Initialize
+- from_state: Ready
+  label: onTask
+  to_state: RunTask
+- from_state: RunTask
+  label: onTaskComplete
+  to_state: TaskComplete
+- from_state: Start
+  label: start
+  to_state: Waiting
+- from_state: TaskComplete
+  label: start
+  to_state: Ready
+- from_state: Waiting
+  label: onInventory
+  to_state: Initialize
