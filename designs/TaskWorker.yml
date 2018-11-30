@@ -1,7 +1,11 @@
-diagram_uuid: b56c4d5b-3cdd-4cd5-b059-2d9198844c93
+diagram_uuid: 86c2177f-c7a6-42cc-8634-4b04f519d2b2
 finite_state_machine_id: 1
 name: TaskWorker
 states:
+- id: 7
+  label: End
+  x: 658
+  y: 1122
 - id: 0
   label: Initialize
   x: 634
@@ -12,17 +16,17 @@ states:
   y: 630
 - id: 2
   label: RunTask
-  x: 485
-  y: 892
+  x: 459
+  y: 915
 - id: 3
   label: Start
   x: 628
   y: -26
 - id: 4
   label: TaskComplete
-  x: 830
-  y: 873
-- id: 6
+  x: 882
+  y: 906
+- id: 5
   label: Waiting
   x: 632
   y: 163
@@ -36,6 +40,12 @@ transitions:
 - from_state: Ready
   label: onTask
   to_state: RunTask
+- from_state: RunTask
+  label: onShutdown
+  to_state: End
+- from_state: RunTask
+  label: onStatus
+  to_state: TaskComplete
 - from_state: RunTask
   label: onTaskComplete
   to_state: TaskComplete

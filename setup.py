@@ -16,6 +16,7 @@ requirements = [ 'ansible',
                  'PyYAML',
                  'docopt',
                  'six',
+                 'gevent_fsm',
 ]
 
 setup_requirements = ['pytest-runner', ]
