@@ -1,5 +1,5 @@
 
-from gevent_pipeline.fsm import State, transitions
+from gevent_fsm.fsm import State, transitions
 
 
 class _RunTask(State):
@@ -39,6 +39,7 @@ class _Initialize(State):
     @transitions('Ready')
     def start(self, controller):
 
+        controller.context.initialize()
         controller.changeState(Ready)
 
 
@@ -60,7 +61,12 @@ class _Waiting(State):
 
     @transitions('Initialize')
     def onInventory(self, controller, message_type, message):
+        controller.context.inventory = message.inventory
+        controller.changeState(Initialize)
 
+    @transitions('Initialize')
+    def onKey(self, controller, message_type, message):
+        controller.context.key = message.key
         controller.changeState(Initialize)
 
 
@@ -68,6 +74,8 @@ Waiting = _Waiting()
 
 
 class _End(State):
+
+    pass
 
 
 End = _End()
@@ -79,11 +87,20 @@ class _Ready(State):
     def onInventory(self, controller, message_type, message):
 
         controller.changeState(Initialize)
+        controller.handle_message(message_type, message)
+
+    @transitions('Initialize')
+    def onKey(self, controller, message_type, message):
+
+        controller.changeState(Initialize)
+        controller.handle_message(message_type, message)
 
     @transitions('RunTask')
     def onTask(self, controller, message_type, message):
 
         controller.changeState(RunTask)
+        controller.context.task_id = message.id
+        controller.context.run_task(message)
 
 
 Ready = _Ready()

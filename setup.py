@@ -17,6 +17,7 @@ requirements = [ 'ansible',
                  'docopt',
                  'six',
                  'gevent_fsm',
+                 'pyzmq',
 ]
 
 setup_requirements = ['pytest-runner', ]
@@ -53,4 +54,10 @@ setup(
     url='https://github.com/benthomasson/ansible_task_worker',
     version='0.1.0',
     zip_safe=False,
+    entry_points={
+        'console_scripts': [
+            'ansible-task = ansible_task_worker.ansible_task:main',
+            'ansible-task-server = ansible_task_worker.ansible_task_server:main',
+        ],
+    }
 )
