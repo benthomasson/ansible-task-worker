@@ -4,7 +4,6 @@ from gevent_fsm.conf import settings
 from gevent_fsm.fsm import FSMController, Channel, NullChannel
 from . import worker_fsm
 from . import messages
-from itertools import count
 import ansible_runner
 import tempfile
 import os
@@ -12,6 +11,8 @@ import json
 import yaml
 import logging
 import traceback
+import configparser
+import pkg_resources
 
 
 WORKSPACE = "/tmp/workspace"
@@ -43,6 +44,7 @@ class AnsibleTaskWorker(object):
         self.client_id = None
         self.key = None
         self.inventory = None
+        self.status_socket_port = 0
 
     def build_project_directory(self):
         ensure_directory(WORKSPACE)
@@ -54,6 +56,31 @@ class AnsibleTaskWorker(object):
         with open(os.path.join(self.temp_dir, 'env', 'settings'), 'w') as f:
             f.write(json.dumps(dict(idle_timeout=0,
                                     job_timeout=0)))
+        self.write_ansible_cfg()
+
+    def write_ansible_cfg(self):
+        config = configparser.SafeConfigParser()
+        if not os.path.exists(os.path.join(self.temp_dir, 'project')):
+            os.mkdir(os.path.join(self.temp_dir, 'project'))
+
+        if not config.has_section('defaults'):
+            config.add_section('defaults')
+        if config.has_option('defaults', 'roles_path'):
+            roles_path = config.get('defaults', 'roles_path')
+            roles_path = ":".join([os.path.abspath(x) for x in roles_path.split(":")])
+            roles_path = "{0}:{1}".format(roles_path,
+                                          os.path.abspath(pkg_resources.resource_filename('ansible_task_worker', 'roles')))
+            config.set('defaults', 'roles_path', roles_path)
+        else:
+            config.set('defaults', 'roles_path', os.path.abspath(
+                pkg_resources.resource_filename('ansible_task_worker', 'roles')))
+        if not config.has_section('callback_ansible_worker_helper'):
+            config.add_section('callback_ansible_worker_helper')
+        config.set('callback_ansible_worker_helper',
+                   'status_port', str(self.status_socket_port))
+        with open(os.path.join(self.temp_dir, 'project', 'ansible.cfg'), 'w') as f:
+            config.write(f)
+        logger.info("Wrote ansible.cfg")
 
     def add_inventory(self, inventory):
         print("add_inventory")
