@@ -15,3 +15,7 @@ class ZMQClientChannel(object):
         self.socket.send_multipart(serialize(task))
         msg = self.socket.recv_multipart()
         print (msg)
+
+    def receive(self):
+        return self.socket.recv_multipart()
+

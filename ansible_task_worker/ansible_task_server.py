@@ -18,6 +18,7 @@ from .worker import AnsibleTaskWorker
 from .server import ZMQServerChannel
 import gevent
 from .messages import Inventory
+from .util import ConsoleTraceLog
 
 logger = logging.getLogger('ansible_task_server')
 
@@ -33,8 +34,10 @@ def main(args=None):
     else:
         logging.basicConfig(level=logging.WARNING)
 
-    worker = AnsibleTaskWorker()
-    server = ZMQServerChannel(worker.queue)
+    tracer = ConsoleTraceLog()
+    worker = AnsibleTaskWorker(tracer)
+    server = ZMQServerChannel(worker.queue, tracer)
     server.outbox.put(Inventory(0, 'localhost ansible_connection=local'))
-    gevent.joinall([worker.thread, server.thread])
+    worker.controller.outboxes['output'] = server.queue
+    gevent.joinall([worker.thread, server.zmq_thread, server.controller_thread])
     return 0

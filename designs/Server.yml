@@ -1,0 +1,26 @@
+diagram_uuid: 2d855166-fabe-4a37-b53d-c4d662dfc5e1
+finite_state_machine_id: 1
+name: Server
+states:
+- id: 2
+  label: Ready
+  x: 485
+  y: 401
+- id: 1
+  label: Start
+  x: 637
+  y: 146
+- id: 3
+  label: Waiting
+  x: 801
+  y: 400
+transitions:
+- from_state: Ready
+  label: onTask
+  to_state: Waiting
+- from_state: Start
+  label: start
+  to_state: Ready
+- from_state: Waiting
+  label: onTaskComplete
+  to_state: Ready

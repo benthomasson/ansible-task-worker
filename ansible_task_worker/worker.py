@@ -29,10 +29,10 @@ settings.instrumented = True
 
 class AnsibleTaskWorker(object):
 
-    def __init__(self):
-        self.counter = count(start=1, step=1)
+    def __init__(self, tracer):
+        self.tracer = tracer
         self.buffered_messages = Queue()
-        self.controller = FSMController(self, "worker_fsm", 1, worker_fsm.Start, self, self)
+        self.controller = FSMController(self, "worker_fsm", 1, worker_fsm.Start, self.tracer, self.tracer)
         self.controller.outboxes['default'] = Channel(self.controller, self.controller, self, self.buffered_messages)
         self.controller.outboxes['output'] = NullChannel(self.controller, self)
         self.queue = self.controller.inboxes['default']
@@ -40,14 +40,9 @@ class AnsibleTaskWorker(object):
         self.temp_dir = None
         self.cancel_requested = False
         self.task_id = None
+        self.client_id = None
         self.key = None
         self.inventory = None
-
-    def trace_order_seq(self):
-        return next(self.counter)
-
-    def send_trace_message(self, message):
-        print(message)
 
     def build_project_directory(self):
         ensure_directory(WORKSPACE)
@@ -90,15 +85,16 @@ class AnsibleTaskWorker(object):
                      event_handler=self.runner_process_message)
 
     def runner_process_message(self, data):
-        self.controller.outboxes['output'].put(messages.RunnerStdout(self.task_id, data.get('stdout', '')))
-        self.controller.outboxes['output'].put(messages.RunnerMessage(self.task_id, data))
+        self.controller.outboxes['output'].put(messages.RunnerStdout(self.task_id, self.client_id, data.get('stdout', '')))
+        self.controller.outboxes['output'].put(messages.RunnerMessage(self.task_id, self.client_id, data))
 
     def cancel_callback(self):
         return self.cancel_requested
 
     def finished_callback(self, runner):
         logger.info('called')
-        self.queue.put(messages.TaskComplete(self.task_id))
+        self.queue.put(messages.TaskComplete(self.task_id, self.client_id))
+        self.controller.outboxes['output'].put(messages.TaskComplete(self.task_id, self.client_id))
 
     def initialize(self):
         try:

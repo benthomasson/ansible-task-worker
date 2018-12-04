@@ -14,7 +14,6 @@ import sys
 import yaml
 from .client import ZMQClientChannel
 from .messages import Task
-import gevent
 
 
 logger = logging.getLogger('ansible_task')
@@ -31,7 +30,6 @@ def main(args=None):
     else:
         logging.basicConfig(level=logging.WARNING)
 
-
     client = ZMQClientChannel()
 
     task_file = parsed_args['<tasks-file>']
@@ -39,8 +37,19 @@ def main(args=None):
     with open(task_file) as f:
         tasks = yaml.load(f.read())
 
-    for task in tasks:
+    completed = {}
+
+    for i, task in enumerate(tasks):
         print(task)
-        client.send(Task(0, [task]))
+        completed[i] = False
+        client.send(Task(i, 0, [task]))
+
+    while not all(completed.values()):
+        msg = client.receive()
+        if msg[0] == b'TaskComplete':
+            completed[int(msg[1].decode())] = True
+        elif msg[0] == b'RunnerStdout':
+            for line in msg[2].decode().splitlines():
+                print("{}: {}".format(msg[1].decode(), line))
 
     return 0

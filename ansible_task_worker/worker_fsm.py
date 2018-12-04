@@ -59,6 +59,11 @@ Start = _Start()
 
 class _Waiting(State):
 
+    def start(self, controller):
+        print ("worker_fsm buffered_messages", len(controller.context.buffered_messages))
+        if not controller.context.buffered_messages.empty():
+            controller.context.queue.put(controller.context.buffered_messages.get())
+
     @transitions('Initialize')
     def onInventory(self, controller, message_type, message):
         controller.context.inventory = message.inventory
@@ -100,6 +105,7 @@ class _Ready(State):
 
         controller.changeState(RunTask)
         controller.context.task_id = message.id
+        controller.context.client_id = message.client_id
         controller.context.run_task(message)
 
 
