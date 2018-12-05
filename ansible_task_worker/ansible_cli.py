@@ -1,7 +1,7 @@
 
 """
 Usage:
-    ansible-cli [options]
+    ansible-cli [options] <output-playbook>
 
 Options:
     -h, --help        Show this page
@@ -29,13 +29,22 @@ logger = logging.getLogger('ansible_task')
 
 class AnsibleCLI(cmd.Cmd):
 
-    def __init__(self, client):
+    def __init__(self, client, output, playbook):
         super(AnsibleCLI, self).__init__()
         self.counter = count()
         self.client = client
+        self.output = output
+        self.playbook = playbook
+
+    def write_output_playbook(self):
+        with open(self.output, 'w') as f:
+            f.write(yaml.dump(self.playbook, default_flow_style=False))
 
     def do_EOF(self, line):
         raise KeyboardInterrupt()
+
+    def do_e(self, line):
+        self.do_edit(line)
 
     def do_edit(self, line):
         f, name = tempfile.mkstemp()
@@ -46,6 +55,8 @@ class AnsibleCLI(cmd.Cmd):
         os.unlink(name)
 
     def default(self, line):
+        self.playbook[0]['tasks'].append(yaml.load(line))
+        self.write_output_playbook()
         self.client.send(Task(next(self.counter), 0, [yaml.load(line)]))
         done = False
         while not done:
@@ -68,9 +79,15 @@ def main(args=None):
     else:
         logging.basicConfig(level=logging.WARNING)
 
+    output = parsed_args['<output-playbook>']
+    playbook = [dict(name=parsed_args['<output-playbook>'],
+                    hosts="localhost",
+                    gather_facts=False,
+                    tasks=[])]
+
     client = ZMQClientChannel()
     try:
-        cli = AnsibleCLI(client)
+        cli = AnsibleCLI(client, output, playbook)
         cli.cmdloop()
     except KeyboardInterrupt:
         pass
