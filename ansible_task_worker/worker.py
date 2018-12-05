@@ -1,4 +1,5 @@
 import gevent
+import zmq.green as zmq
 from gevent.queue import Queue
 from gevent_fsm.conf import settings
 from gevent_fsm.fsm import FSMController, Channel, NullChannel
@@ -13,6 +14,7 @@ import logging
 import traceback
 import configparser
 import pkg_resources
+from .messages import TaskCompletionMessage, StatusMessage
 
 
 WORKSPACE = "/tmp/workspace"
@@ -34,8 +36,8 @@ class AnsibleTaskWorker(object):
         self.tracer = tracer
         self.buffered_messages = Queue()
         self.controller = FSMController(self, "worker_fsm", 1, worker_fsm.Start, self.tracer, self.tracer)
-        self.controller.outboxes['default'] = Channel(self.controller, self.controller, self, self.buffered_messages)
-        self.controller.outboxes['output'] = NullChannel(self.controller, self)
+        self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
+        self.controller.outboxes['output'] = NullChannel(self.controller, self.tracer)
         self.queue = self.controller.inboxes['default']
         self.thread = gevent.spawn(self.controller.receive_messages)
         self.temp_dir = None
@@ -45,6 +47,41 @@ class AnsibleTaskWorker(object):
         self.key = None
         self.inventory = None
         self.status_socket_port = 0
+        self.tasks_counter = 0
+        self.next_task_file = None
+        self.task_files = []
+        self.default_inventory = "[all]\nlocalhost ansible_connection=local\n"
+        self.default_play = dict(hosts='localhost',
+                                 name='default',
+                                 gather_facts=False)
+
+        context = zmq.Context.instance()
+        self.pause_queue = Queue()
+        self.pause_socket = context.socket(zmq.REP)
+        self.pause_socket_port = self.pause_socket.bind_to_random_port("tcp://127.0.0.1")
+        self.status_socket = context.socket(zmq.PULL)
+        self.status_socket_port = self.status_socket.bind_to_random_port("tcp://127.0.0.1")
+        self.recv_status_thread = gevent.spawn(self.recv_status)
+        self.recv_pause_thread = gevent.spawn(self.recv_pause)
+        self.initialize()
+        self.start_play()
+
+    def recv_status(self):
+        while True:
+            msg = self.status_socket.recv_multipart()
+            logger.info(msg)
+            self.queue.put(StatusMessage(json.loads(msg[0])))
+            gevent.sleep()
+
+    def recv_pause(self):
+        while True:
+            msg = self.pause_socket.recv_multipart()
+            logger.info("completed %s waiting...", msg)
+            self.queue.put(messages.TaskComplete(self.task_id, self.client_id))
+            self.controller.outboxes['output'].put(messages.TaskComplete(self.task_id, self.client_id))
+            self.pause_queue.get()
+            self.pause_socket.send_string('Proceed')
+            gevent.sleep()
 
     def build_project_directory(self):
         ensure_directory(WORKSPACE)
@@ -135,11 +172,48 @@ class AnsibleTaskWorker(object):
             print(traceback.format_exc())
             logger.error(str(e))
 
+    def build_play(self):
+        current_play = self.default_play.copy()
+        current_play['roles'] = current_play.get('roles', [])
+        current_play['roles'].insert(0, 'ansible_task_helpers')
+        tasks = current_play['tasks'] = current_play.get('tasks', [])
+        tasks.append({'pause_for_kernel': {'host': '127.0.0.1',
+                                           'port': self.pause_socket_port,
+                                           'task_num': self.tasks_counter - 1}})
+        tasks.append(
+            {'include_tasks': 'next_task{0}.yml'.format(self.tasks_counter)})
+        return current_play
+
+    def start_play(self):
+        try:
+            self.add_playbook([self.build_play()])
+            self.run_playbook()
+        except BaseException as e:
+            print(str(e))
+            print(traceback.format_exc())
+            logger.error(str(e))
+
     def run_task(self, message):
         try:
-            task = message.task
-            self.add_playbook(task)
-            self.run_playbook()
+            tasks = []
+            current_task = message.task
+            current_task_data = message.task[0].copy()
+            current_task_data['ignore_errors'] = True
+            tasks.append(current_task_data)
+            tasks.append({'pause_for_kernel': {'host': '127.0.0.1',
+                                               'port': self.pause_socket_port,
+                                               'task_num': self.tasks_counter}})
+            tasks.append(
+                {'include_tasks': 'next_task{0}.yml'.format(self.tasks_counter + 1)})
+
+            self.next_task_file = os.path.join(self.temp_dir, 'project',
+                                               'next_task{0}.yml'.format(self.tasks_counter))
+            self.tasks_counter += 1
+            self.task_files.append(self.next_task_file)
+            with open(self.next_task_file, 'w') as f:
+                f.write(yaml.safe_dump(tasks, default_flow_style=False))
+            print('Wrote %s', self.next_task_file)
+            self.pause_queue.put("Proceed")
         except BaseException as e:
             print(str(e))
             print(traceback.format_exc())

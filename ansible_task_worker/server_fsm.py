@@ -26,6 +26,15 @@ class _Ready(State):
         controller.changeState(Waiting)
         controller.context.outbox.put(message)
 
+    def onRunnerStdout(self, controller, message_type, message):
+        pass
+
+    def onRunnerMessage(self, controller, message_type, message):
+        pass
+
+    def onTaskComplete(self, controller, message_type, message):
+        pass
+
 
 Ready = _Ready()
 

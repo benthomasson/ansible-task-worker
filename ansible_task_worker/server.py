@@ -16,8 +16,16 @@ class ZMQServerChannel(object):
         self.context = zmq.Context.instance()
         self.socket = self.context.socket(zmq.ROUTER)
         self.socket.bind('tcp://127.0.0.1:5555')
-        self.controller = FSMController(self, "server_fsm", 1, server_fsm.Start, self.tracer, self.tracer)
-        self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
+        self.controller = FSMController(self,
+                                        "server_fsm",
+                                        1,
+                                        server_fsm.Start,
+                                        self.tracer,
+                                        self.tracer)
+        self.controller.outboxes['default'] = Channel(self.controller,
+                                                      self.controller,
+                                                      self.tracer,
+                                                      self.buffered_messages)
         self.controller.outboxes['output'] = NullChannel(self.controller, self)
         self.queue = self.controller.inboxes['default']
 

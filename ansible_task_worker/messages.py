@@ -16,4 +16,7 @@ RunnerStdout = namedtuple('RunnerStdout', ['id', 'client_id', 'data'])
 RunnerMessage = namedtuple('RunnerMessage', ['id', 'client_id', 'data'])
 RunnerCancelled = namedtuple('RunnerCancelled', ['id', 'client_id'])
 
+StatusMessage = namedtuple('StatusMessage', ['message'])
+TaskCompletionMessage = namedtuple('TaskCompletionMessage', ['task_num'])
+
 msg_types = {x.__name__: x for x in [Task, Inventory]}

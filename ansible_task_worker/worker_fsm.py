@@ -39,7 +39,6 @@ class _Initialize(State):
     @transitions('Ready')
     def start(self, controller):
 
-        controller.context.initialize()
         controller.changeState(Ready)
 
 
