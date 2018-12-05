@@ -57,6 +57,7 @@ setup(
     entry_points={
         'console_scripts': [
             'ansible-task = ansible_task_worker.ansible_task:main',
+            'ansible-cli = ansible_task_worker.ansible_cli:main',
             'ansible-task-server = ansible_task_worker.ansible_task_server:main',
         ],
     }
