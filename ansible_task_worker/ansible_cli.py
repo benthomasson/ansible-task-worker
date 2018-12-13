@@ -55,9 +55,9 @@ class AnsibleCLI(cmd.Cmd):
         os.unlink(name)
 
     def default(self, line):
-        self.playbook[0]['tasks'].append(yaml.load(line))
+        self.playbook[0]['tasks'].append(yaml.safe_load(line))
         self.write_output_playbook()
-        self.client.send(Task(next(self.counter), 0, [yaml.load(line)]))
+        self.client.send(Task(next(self.counter), 0, [yaml.safe_load(line)]))
         done = False
         while not done:
             msg = self.client.receive()

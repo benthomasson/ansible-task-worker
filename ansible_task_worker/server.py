@@ -32,18 +32,12 @@ class ZMQServerChannel(object):
         self.zmq_thread = gevent.spawn(self.receive_messages)
         self.controller_thread = gevent.spawn(self.controller.receive_messages)
 
-    def trace_order_seq(self):
-        return next(self.counter)
-
-    def send_trace_message(self, message):
-        print(message)
-
     def receive_messages(self):
         while True:
             message = self.socket.recv_multipart()
             id = message.pop(0)
             msg_type = message.pop(0).decode()
-            msg_data = yaml.load(message.pop(0).decode())
+            msg_data = yaml.safe_load(message.pop(0).decode())
             print (id, msg_type, msg_data)
             msg_data['client_id'] = id
             print(msg_types[msg_type](**msg_data))

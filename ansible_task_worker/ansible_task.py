@@ -35,7 +35,7 @@ def main(args=None):
     task_file = parsed_args['<tasks-file>']
 
     with open(task_file) as f:
-        tasks = yaml.load(f.read())
+        tasks = yaml.safe_load(f.read())
 
     completed = {}
 
