@@ -1,5 +1,7 @@
 
 from gevent_fsm.fsm import State, transitions
+from queue import Empty
+from . import messages
 
 
 class _RunTask(State):
@@ -17,7 +19,10 @@ class _RunTask(State):
     @transitions('TaskComplete')
     def onTaskComplete(self, controller, message_type, message):
 
+        task_id = controller.context.task_id
+        client_id = controller.context.client_id
         controller.changeState(TaskComplete)
+        controller.outboxes['output'].put(messages.TaskComplete(task_id, client_id))
 
 
 RunTask = _RunTask()
@@ -58,19 +63,8 @@ Start = _Start()
 
 class _Waiting(State):
 
-    def start(self, controller):
-        print ("worker_fsm buffered_messages", len(controller.context.buffered_messages))
-        if not controller.context.buffered_messages.empty():
-            controller.context.queue.put(controller.context.buffered_messages.get())
-
     @transitions('Initialize')
-    def onInventory(self, controller, message_type, message):
-        controller.context.inventory = message.inventory
-        controller.changeState(Initialize)
-
-    @transitions('Initialize')
-    def onKey(self, controller, message_type, message):
-        controller.context.key = message.key
+    def onTaskComplete(self, controller, message_type, message):
         controller.changeState(Initialize)
 
 
@@ -87,17 +81,18 @@ End = _End()
 
 class _Ready(State):
 
-    @transitions('Initialize')
+    def start(self, controller):
+        print ("worker_fsm buffered_messages", len(controller.context.buffered_messages))
+        try:
+            while True:
+                message = controller.context.buffered_messages.get_nowait()
+                print (message)
+                controller.context.queue.put(message)
+        except Empty:
+            pass
+
     def onInventory(self, controller, message_type, message):
-
-        controller.changeState(Initialize)
-        controller.handle_message(message_type, message)
-
-    @transitions('Initialize')
-    def onKey(self, controller, message_type, message):
-
-        controller.changeState(Initialize)
-        controller.handle_message(message_type, message)
+        pass
 
     @transitions('RunTask')
     def onTask(self, controller, message_type, message):

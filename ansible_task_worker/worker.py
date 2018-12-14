@@ -78,7 +78,6 @@ class AnsibleTaskWorker(object):
             msg = self.pause_socket.recv_multipart()
             logger.info("completed %s waiting...", msg)
             self.queue.put(messages.TaskComplete(self.task_id, self.client_id))
-            self.controller.outboxes['output'].put(messages.TaskComplete(self.task_id, self.client_id))
             self.pause_queue.get()
             self.pause_socket.send_string('Proceed')
             gevent.sleep()
