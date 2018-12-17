@@ -6,10 +6,9 @@ from . import messages
 
 class _RunTask(State):
 
-    @transitions('End')
-    def onShutdown(self, controller, message_type, message):
-
-        controller.changeState(End)
+    @transitions('ShuttingDown')
+    def onShutdownRequested(self, controller, message_type, message):
+        controller.changeState(ShuttingDown)
 
     @transitions('TaskComplete')
     def onStatus(self, controller, message_type, message):
@@ -29,6 +28,10 @@ RunTask = _RunTask()
 
 
 class _TaskComplete(State):
+
+    @transitions('ShuttingDown')
+    def onShutdownRequested(self, controller, message_type, message):
+        controller.changeState(ShuttingDown)
 
     @transitions('Ready')
     def start(self, controller):
@@ -70,16 +73,33 @@ class _Waiting(State):
 
 Waiting = _Waiting()
 
+class _ShuttingDown(State):
+
+    def start(self, controller):
+        controller.context.cancel_requested = True
+
+    @transitions('End')
+    def onTaskComplete(self, controller, message_type, message):
+        controller.changeState(End)
+
+
+ShuttingDown = _ShuttingDown()
 
 class _End(State):
 
-    pass
-
+    def start(self, controller):
+        task_id = controller.context.task_id
+        client_id = controller.context.client_id
+        controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
 
 End = _End()
 
 
 class _Ready(State):
+
+    @transitions('ShuttingDown')
+    def onShutdownRequested(self, controller, message_type, message):
+        controller.changeState(ShuttingDown)
 
     def start(self, controller):
         print ("worker_fsm buffered_messages", len(controller.context.buffered_messages))
