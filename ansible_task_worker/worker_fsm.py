@@ -93,6 +93,10 @@ class _End(State):
         client_id = controller.context.client_id
         controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
 
+    def onTaskComplete(self, controller, message_type, message):
+        task_id = controller.context.task_id
+        client_id = controller.context.client_id
+        controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
 
 End = _End()
 
