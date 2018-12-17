@@ -32,10 +32,10 @@ settings.instrumented = True
 
 class AnsibleTaskWorker(object):
 
-    def __init__(self, tracer):
+    def __init__(self, tracer, fsm_id):
         self.tracer = tracer
         self.buffered_messages = Queue()
-        self.controller = FSMController(self, "worker_fsm", 1, worker_fsm.Start, self.tracer, self.tracer)
+        self.controller = FSMController(self, "worker_fsm", fsm_id, worker_fsm.Start, self.tracer, self.tracer)
         self.controller.outboxes['default'] = Channel(self.controller, self.controller, self.tracer, self.buffered_messages)
         self.controller.outboxes['output'] = NullChannel(self.controller, self.tracer)
         self.queue = self.controller.inboxes['default']
@@ -119,24 +119,19 @@ class AnsibleTaskWorker(object):
         logger.info("Wrote ansible.cfg")
 
     def add_inventory(self, inventory):
-        print("add_inventory")
         with open(os.path.join(self.temp_dir, 'inventory'), 'w') as f:
             f.write("\n".join(inventory.splitlines()))
 
     def add_keys(self, key):
-        print("add_keys")
         with open(os.path.join(self.temp_dir, 'env', 'ssh_key'), 'w') as f:
             f.write(key)
 
     def add_playbook(self, playbook):
-        print("add_playbook")
         playbook_file = (os.path.join(self.temp_dir, 'project', 'playbook.yml'))
         with open(playbook_file, 'w') as f:
             f.write(yaml.safe_dump(playbook, default_flow_style=False))
 
     def run_playbook(self):
-        print("run_playbook")
-        print(str(self.temp_dir))
         gevent.spawn(ansible_runner.run,
                      private_data_dir=self.temp_dir,
                      playbook="playbook.yml",
@@ -167,8 +162,6 @@ class AnsibleTaskWorker(object):
             if self.inventory:
                 self.add_inventory(self.inventory)
         except BaseException as e:
-            print(str(e))
-            print(traceback.format_exc())
             logger.error(str(e))
 
     def build_play(self):
@@ -188,8 +181,6 @@ class AnsibleTaskWorker(object):
             self.add_playbook([self.build_play()])
             self.run_playbook()
         except BaseException as e:
-            print(str(e))
-            print(traceback.format_exc())
             logger.error(str(e))
 
     def run_task(self, message):
@@ -211,9 +202,6 @@ class AnsibleTaskWorker(object):
             self.task_files.append(self.next_task_file)
             with open(self.next_task_file, 'w') as f:
                 f.write(yaml.safe_dump(tasks, default_flow_style=False))
-            print('Wrote %s', self.next_task_file)
             self.pause_queue.put("Proceed")
         except BaseException as e:
-            print(str(e))
-            print(traceback.format_exc())
             logger.error(str(e))

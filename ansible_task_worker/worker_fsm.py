@@ -1,4 +1,3 @@
-
 from gevent_fsm.fsm import State, transitions
 from queue import Empty
 from . import messages
@@ -73,6 +72,7 @@ class _Waiting(State):
 
 Waiting = _Waiting()
 
+
 class _ShuttingDown(State):
 
     def start(self, controller):
@@ -85,12 +85,14 @@ class _ShuttingDown(State):
 
 ShuttingDown = _ShuttingDown()
 
+
 class _End(State):
 
     def start(self, controller):
         task_id = controller.context.task_id
         client_id = controller.context.client_id
         controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
+
 
 End = _End()
 
@@ -102,11 +104,9 @@ class _Ready(State):
         controller.changeState(ShuttingDown)
 
     def start(self, controller):
-        print ("worker_fsm buffered_messages", len(controller.context.buffered_messages))
         try:
             while True:
                 message = controller.context.buffered_messages.get_nowait()
-                print (message)
                 controller.context.queue.put(message)
         except Empty:
             pass
