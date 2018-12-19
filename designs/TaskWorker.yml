@@ -1,60 +1,70 @@
-diagram_uuid: 86c2177f-c7a6-42cc-8634-4b04f519d2b2
+diagram_uuid: 14d72c0b-ebb9-415d-ad1a-d0aedd4dcfd2
 finite_state_machine_id: 1
 name: TaskWorker
 states:
-- id: 7
-  label: End
-  x: 658
-  y: 1122
 - id: 0
-  label: Initialize
-  x: 634
-  y: 374
+  label: End
+  x: -8
+  y: 834
 - id: 1
-  label: Ready
-  x: 641
-  y: 630
+  label: Initialize
+  x: -62
+  y: -347
 - id: 2
-  label: RunTask
-  x: 459
-  y: 915
+  label: Ready
+  x: -47
+  y: -46
 - id: 3
-  label: Start
-  x: 628
-  y: -26
+  label: RunTask
+  x: -307
+  y: 248
 - id: 4
-  label: TaskComplete
-  x: 882
-  y: 906
+  label: ShuttingDown
+  x: -16
+  y: 547
 - id: 5
+  label: Start
+  x: -64
+  y: -954
+- id: 6
+  label: TaskComplete
+  x: 311
+  y: 205
+- id: 7
   label: Waiting
-  x: 632
-  y: 163
+  x: -69
+  y: -672
 transitions:
 - from_state: Initialize
   label: start
   to_state: Ready
 - from_state: Ready
-  label: onInventory
-  to_state: Initialize
+  label: onShutdownRequested
+  to_state: ShuttingDown
 - from_state: Ready
   label: onTask
   to_state: RunTask
 - from_state: RunTask
-  label: onShutdown
-  to_state: End
+  label: onShutdownRequested
+  to_state: ShuttingDown
 - from_state: RunTask
   label: onStatus
   to_state: TaskComplete
 - from_state: RunTask
   label: onTaskComplete
   to_state: TaskComplete
+- from_state: ShuttingDown
+  label: onTaskComplete
+  to_state: End
 - from_state: Start
   label: start
   to_state: Waiting
 - from_state: TaskComplete
+  label: onShutdownRequested
+  to_state: ShuttingDown
+- from_state: TaskComplete
   label: start
   to_state: Ready
 - from_state: Waiting
-  label: onInventory
+  label: onTaskComplete
   to_state: Initialize
