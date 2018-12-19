@@ -32,7 +32,7 @@ settings.instrumented = True
 
 class AnsibleTaskWorker(object):
 
-    def __init__(self, tracer, fsm_id):
+    def __init__(self, tracer, fsm_id, inventory):
         self.tracer = tracer
         self.buffered_messages = Queue()
         self.controller = FSMController(self, "worker_fsm", fsm_id, worker_fsm.Start, self.tracer, self.tracer)
@@ -45,7 +45,7 @@ class AnsibleTaskWorker(object):
         self.task_id = None
         self.client_id = None
         self.key = None
-        self.inventory = None
+        self.inventory = inventory
         self.status_socket_port = 0
         self.tasks_counter = 0
         self.next_task_file = None
