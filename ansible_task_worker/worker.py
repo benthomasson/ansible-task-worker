@@ -32,7 +32,7 @@ settings.instrumented = True
 
 class AnsibleTaskWorker(object):
 
-    def __init__(self, tracer, fsm_id, inventory):
+    def __init__(self, tracer, fsm_id, inventory, play_header):
         self.tracer = tracer
         self.buffered_messages = Queue()
         self.controller = FSMController(self, "worker_fsm", fsm_id, worker_fsm.Start, self.tracer, self.tracer)
@@ -50,11 +50,7 @@ class AnsibleTaskWorker(object):
         self.tasks_counter = 0
         self.next_task_file = None
         self.task_files = []
-        self.default_inventory = "[all]\nlocalhost ansible_connection=local\n"
-        self.default_play = dict(hosts='localhost',
-                                 name='default',
-                                 gather_facts=False)
-
+        self.play_header = play_header
         context = zmq.Context.instance()
         self.pause_queue = Queue()
         self.pause_socket = context.socket(zmq.REP)
@@ -165,7 +161,7 @@ class AnsibleTaskWorker(object):
             logger.error(str(e))
 
     def build_play(self):
-        current_play = self.default_play.copy()
+        current_play = self.play_header.copy()
         current_play['roles'] = current_play.get('roles', [])
         current_play['roles'].insert(0, 'ansible_task_helpers')
         tasks = current_play['tasks'] = current_play.get('tasks', [])
