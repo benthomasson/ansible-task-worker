@@ -11,15 +11,15 @@ import os
 import json
 import yaml
 import logging
-import traceback
 import configparser
 import pkg_resources
-from .messages import TaskCompletionMessage, StatusMessage
+from .messages import StatusMessage
+from pprint import pformat
 
 
 WORKSPACE = "/tmp/workspace"
 
-logger = logging.getLogger("ansible_worker_channels.consumers")
+logger = logging.getLogger("ansible_task_worker.consumers")
 
 
 def ensure_directory(directory):
@@ -51,16 +51,29 @@ class AnsibleTaskWorker(object):
         self.next_task_file = None
         self.task_files = []
         self.play_header = play_header
+        self.start_pause_handler()
+        self.start_status_handler()
+        self.initialize()
+        self.start_play()
+
+    def start_pause_handler(self):
         context = zmq.Context.instance()
         self.pause_queue = Queue()
         self.pause_socket = context.socket(zmq.REP)
         self.pause_socket_port = self.pause_socket.bind_to_random_port("tcp://127.0.0.1")
+        self.recv_pause_thread = gevent.spawn(self.recv_pause)
+
+    def stop_pause_handler(self):
+        self.recv_pause_thread.kill()
+
+    def start_status_handler(self):
+        context = zmq.Context.instance()
         self.status_socket = context.socket(zmq.PULL)
         self.status_socket_port = self.status_socket.bind_to_random_port("tcp://127.0.0.1")
         self.recv_status_thread = gevent.spawn(self.recv_status)
-        self.recv_pause_thread = gevent.spawn(self.recv_pause)
-        self.initialize()
-        self.start_play()
+
+    def stop_status_handler(self):
+        self.recv_status_thread.kill()
 
     def recv_status(self):
         while True:
@@ -75,7 +88,9 @@ class AnsibleTaskWorker(object):
             logger.info("completed %s waiting...", msg)
             self.queue.put(messages.TaskComplete(self.task_id, self.client_id))
             self.pause_queue.get()
+            logger.info('Sending Proceed')
             self.pause_socket.send_string('Proceed')
+            logger.info('Sent Proceed')
             gevent.sleep()
 
     def build_project_directory(self):
@@ -139,6 +154,7 @@ class AnsibleTaskWorker(object):
                      event_handler=self.runner_process_message)
 
     def runner_process_message(self, data):
+        print(pformat(data))
         self.controller.outboxes['output'].put(messages.RunnerStdout(self.task_id, self.client_id, data.get('stdout', '')))
         self.controller.outboxes['output'].put(messages.RunnerMessage(self.task_id, self.client_id, data))
 
@@ -147,8 +163,8 @@ class AnsibleTaskWorker(object):
 
     def finished_callback(self, runner):
         logger.info('called')
-        self.queue.put(messages.TaskComplete(self.task_id, self.client_id))
-        self.controller.outboxes['output'].put(messages.TaskComplete(self.task_id, self.client_id))
+        self.queue.put(messages.PlaybookFinished(self.task_id, self.client_id))
+        self.controller.outboxes['output'].put(messages.PlaybookFinished(self.task_id, self.client_id))
 
     def initialize(self):
         try:
@@ -180,9 +196,9 @@ class AnsibleTaskWorker(object):
             logger.error(str(e))
 
     def run_task(self, message):
+        self.current_task = message
         try:
             tasks = []
-            current_task = message.task
             current_task_data = message.task[0].copy()
             current_task_data['ignore_errors'] = True
             tasks.append(current_task_data)

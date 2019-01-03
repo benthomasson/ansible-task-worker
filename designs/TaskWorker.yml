@@ -1,11 +1,11 @@
-diagram_uuid: 14d72c0b-ebb9-415d-ad1a-d0aedd4dcfd2
+diagram_uuid: 7df3e490-fc69-4bcc-bab2-b38d21163528
 finite_state_machine_id: 1
 name: TaskWorker
 states:
 - id: 0
   label: End
-  x: -8
-  y: 834
+  x: 943
+  y: 277
 - id: 1
   label: Initialize
   x: -62
@@ -14,6 +14,10 @@ states:
   label: Ready
   x: -47
   y: -46
+- id: 9
+  label: Restart
+  x: -337
+  y: -304
 - id: 3
   label: RunTask
   x: -307
@@ -39,11 +43,20 @@ transitions:
   label: start
   to_state: Ready
 - from_state: Ready
+  label: onPlaybookFinished
+  to_state: Restart
+- from_state: Ready
   label: onShutdownRequested
   to_state: ShuttingDown
 - from_state: Ready
   label: onTask
   to_state: RunTask
+- from_state: Restart
+  label: start
+  to_state: Waiting
+- from_state: RunTask
+  label: onPlaybookFinished
+  to_state: Restart
 - from_state: RunTask
   label: onShutdownRequested
   to_state: ShuttingDown
@@ -53,6 +66,9 @@ transitions:
 - from_state: RunTask
   label: onTaskComplete
   to_state: TaskComplete
+- from_state: ShuttingDown
+  label: onPlaybookFinished
+  to_state: End
 - from_state: ShuttingDown
   label: onTaskComplete
   to_state: End
@@ -65,6 +81,9 @@ transitions:
 - from_state: TaskComplete
   label: start
   to_state: Ready
+- from_state: Waiting
+  label: onPlaybookFinished
+  to_state: End
 - from_state: Waiting
   label: onTaskComplete
   to_state: Initialize

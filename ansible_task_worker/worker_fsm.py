@@ -22,6 +22,10 @@ class _RunTask(State):
         controller.changeState(TaskComplete)
         controller.outboxes['output'].put(messages.TaskComplete(task_id, client_id))
 
+    @transitions('Restart')
+    def onPlaybookFinished(self, controller, message_type, message):
+        controller.changeState(Restart)
+
 
 RunTask = _RunTask()
 
@@ -69,6 +73,10 @@ class _Waiting(State):
     def onTaskComplete(self, controller, message_type, message):
         controller.changeState(Initialize)
 
+    @transitions('End')
+    def onPlaybookFinished(self, controller, message_type, message):
+        controller.changeState(End)
+
 
 Waiting = _Waiting()
 
@@ -82,6 +90,10 @@ class _ShuttingDown(State):
     def onTaskComplete(self, controller, message_type, message):
         controller.changeState(End)
 
+    @transitions('End')
+    def onPlaybookFinished(self, controller, message_type, message):
+        controller.changeState(End)
+
 
 ShuttingDown = _ShuttingDown()
 
@@ -93,10 +105,21 @@ class _End(State):
         client_id = controller.context.client_id
         controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
 
+    def onShutdownRequested(self, controller, message_type, message):
+        task_id = controller.context.task_id
+        client_id = controller.context.client_id
+        controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
+
     def onTaskComplete(self, controller, message_type, message):
         task_id = controller.context.task_id
         client_id = controller.context.client_id
         controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
+
+    def onPlaybookFinished(self, controller, message_type, message):
+        task_id = controller.context.task_id
+        client_id = controller.context.client_id
+        controller.outboxes['output'].put(messages.ShutdownComplete(task_id, client_id))
+
 
 End = _End()
 
@@ -126,5 +149,26 @@ class _Ready(State):
         controller.context.client_id = message.client_id
         controller.context.run_task(message)
 
+    @transitions('Restart')
+    def onPlaybookFinished(self, controller, message_type, message):
+        controller.changeState(Restart)
+
 
 Ready = _Ready()
+
+
+class _Restart(State):
+
+    @transitions('Waiting')
+    def start(self, controller):
+
+        controller.context.stop_pause_handler()
+        controller.context.stop_status_handler()
+        controller.context.start_pause_handler()
+        controller.context.start_status_handler()
+        controller.context.start_play()
+        controller.changeState(Waiting)
+        controller.context.queue.put(controller.context.current_task)
+
+
+Restart = _Restart()
