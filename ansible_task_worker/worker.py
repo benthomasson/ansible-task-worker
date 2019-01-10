@@ -14,7 +14,6 @@ import logging
 import configparser
 import pkg_resources
 from .messages import StatusMessage
-from pprint import pformat
 
 
 WORKSPACE = "/tmp/workspace"
@@ -112,6 +111,8 @@ class AnsibleTaskWorker(object):
 
         if not config.has_section('defaults'):
             config.add_section('defaults')
+        config.set('defaults', 'fact_caching', 'jsonfile')
+        config.set('defaults', 'fact_caching_connection', 'fact_cache')
         if config.has_option('defaults', 'roles_path'):
             roles_path = config.get('defaults', 'roles_path')
             roles_path = ":".join([os.path.abspath(x) for x in roles_path.split(":")])
@@ -154,7 +155,6 @@ class AnsibleTaskWorker(object):
                      event_handler=self.runner_process_message)
 
     def runner_process_message(self, data):
-        print(pformat(data))
         self.controller.outboxes['output'].put(messages.RunnerStdout(self.task_id, self.client_id, data.get('stdout', '')))
         self.controller.outboxes['output'].put(messages.RunnerMessage(self.task_id, self.client_id, data))
 
