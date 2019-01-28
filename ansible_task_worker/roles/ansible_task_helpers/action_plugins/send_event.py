@@ -2,6 +2,21 @@ from ansible.plugins.action import ActionBase
 
 import zmq
 import yaml
+from yaml.dumper import SafeDumper
+from yaml.representer import SafeRepresenter
+
+from ansible.utils.unsafe_proxy import AnsibleUnsafeText
+from ansible.parsing.yaml.objects import AnsibleUnicode
+
+class AnsibleDumper(SafeDumper):
+    pass
+
+
+def unsafe_text_representer(dumper, data):
+    return dumper.represent_str(str(data))
+
+AnsibleDumper.add_representer(AnsibleUnsafeText, unsafe_text_representer)
+AnsibleDumper.add_representer(AnsibleUnicode, unsafe_text_representer)
 
 
 class ActionModule(ActionBase):
@@ -34,10 +49,13 @@ class ActionModule(ActionBase):
         socket.connect("tcp://{0}:{1}".format(host, port))
         # print ('connected')
         # print ('sending...')
+        # for key, value in data.items():
+        #     print(key, type(key))
+        #     print(key, type(value))
         socket.send_multipart([b'Event', yaml.dump(dict(name=str(event),
                                                         to_fsm_id=str(to_fsm),
                                                         from_fsm_id=str(from_fsm),
-                                                        data={})).encode()])
+                                                        data=data), Dumper=AnsibleDumper).encode()])
         # print ('sent')
         # print ('waiting...')
         socket.recv()
